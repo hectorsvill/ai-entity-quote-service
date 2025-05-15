@@ -8,12 +8,11 @@ import (
 	"net/http"
 	"os"
 
-	"google.golang.org/genai"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"google.golang.org/genai"
 
 	"github.com/hectorsvill/tasksql"
-
 )
 
 func getQuote(w http.ResponseWriter, r *http.Request) {
@@ -61,16 +60,15 @@ func generateAIQuote() string {
 }
 
 func storeQote(q string) {
-			taskSql, err := tasksql.NewDB("data.db")
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer taskSql.Close()
+	taskSql, err := tasksql.NewDB("data.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer taskSql.Close()
 
-		taskSql.CreateTableIfNotExist("quotes")
-		taskSql.Post("quotes", q)
+	taskSql.CreateTableIfNotExist("quotes")
+	taskSql.Post("quotes", q)
 }
-
 
 func getSystemPrompt() string {
 	filePath := "System-Prompt.md"
@@ -88,6 +86,7 @@ func main() {
 	router.Get("/quote", getQuote)
 
 	fmt.Printf("Starting Server on :8080\n")
-	http.ListenAndServe(":8080", router)
+	fmt.Printf("Endpoint: :8080/quote")
 
+	http.ListenAndServe(":8080", router)
 }
