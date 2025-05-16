@@ -22,6 +22,14 @@ go get google.golang.org/genai
 go get github.com/hectorsvill/tasksql
 ```
 
+#### Build 
+```bash
+go build src/main.go
+```
+#### Run
+```bash
+./main
+```
 #### API Endpoint
 - Endpoint: /quote
 - Method: GET
