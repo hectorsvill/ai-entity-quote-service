@@ -54,12 +54,12 @@ func generateAIQuote() string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	go storeQote(result.Text())
+	go storeQuote(result.Text())
 	log.Println(result.Text())
 	return result.Text()
 }
 
-func storeQote(q string) {
+func storeQuote(q string) {
 	taskSql, err := tasksql.NewDB("data.db")
 	if err != nil {
 		log.Fatal(err)
