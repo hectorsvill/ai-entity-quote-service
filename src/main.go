@@ -71,7 +71,7 @@ func storeQuote(q string) {
 }
 
 func getSystemPrompt() string {
-	filePath := "System-Prompt.md"
+	filePath := "./src/System-Prompt.md"
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		log.Fatal(err)
