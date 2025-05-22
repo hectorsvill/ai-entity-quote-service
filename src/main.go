@@ -11,28 +11,76 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"google.golang.org/genai"
+	"github.com/google/uuid"
 
 	"github.com/hectorsvill/tasksql"
 )
 
-func getQuote(w http.ResponseWriter, r *http.Request) {
-	quote := generateAIQuote()
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"quote":      quote,
-		"ai-service": "gemini",
-	})
-}
-
-func generateAIQuote() string {
+func textToImage(prompt string) string {
+	apiKey := getAPIKey()
 	ctx := context.Background()
 
+	client, _ := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey: apiKey,
+		Backend: genai.BackendGeminiAPI,
+	})
+
+	config := &genai.GenerateContentConfig{
+		ResponseModalities: []string{"TEXT", "IMAGE"},
+	}
+	
+	result, _ := client.Models.GenerateContent(
+		ctx,
+		"gemini-2.0-flash-preview-image-generation",
+		genai.Text(prompt),
+		config,
+	)
+	id := uuid.New().String()
+	for _, part := range result.Candidates[0].Content.Parts {
+		if part.Text != "" {
+			fmt.Println(part.Text)
+		} else if part.InlineData != nil {
+			imageBytes := part.InlineData.Data
+			outputFilename := fmt.Sprintf("./src/img/%s.png", id)
+			_ = os.WriteFile(outputFilename, imageBytes, 0644)
+		}
+  	}
+	return id
+}
+
+func getAPIKey() string {
 	apikey := os.Getenv("GEMINI_API_KEY")
 	if apikey == "" {
 		log.Fatal("Please set the GEMINI_API_KEY")
 	}
+	return apikey
+}
+
+func storeQuote(q string) {
+	taskSql, err := tasksql.NewDB("data.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer taskSql.Close()
+
+	taskSql.CreateTableIfNotExist("quotes")
+	taskSql.Post("quotes", q)
+}
+
+func getSystemPrompt() string {
+	filePath := "./src/System-Prompt.md"
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	systemPrompt := string(content)
+	return systemPrompt
+}
+
+func generateAIQuote() string {
+	ctx := context.Background()
+	apikey := getAPIKey()
+
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey:  apikey,
 		Backend: genai.BackendGeminiAPI,
@@ -59,25 +107,18 @@ func generateAIQuote() string {
 	return result.Text()
 }
 
-func storeQuote(q string) {
-	taskSql, err := tasksql.NewDB("data.db")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer taskSql.Close()
+func getQuote(w http.ResponseWriter, r *http.Request) {
+	quote := generateAIQuote()
+	id := textToImage(quote)
 
-	taskSql.CreateTableIfNotExist("quotes")
-	taskSql.Post("quotes", q)
-}
-
-func getSystemPrompt() string {
-	filePath := "./src/System-Prompt.md"
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	systemPrompt := string(content)
-	return systemPrompt
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"quote":      quote,
+		"ai-service": "gemini",
+		"id": id,
+	})
+	
 }
 
 func main() {
